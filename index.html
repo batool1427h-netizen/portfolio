@@ -14,7 +14,6 @@
         .container { max-width: 800px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         h2, h3 { color: #333; text-align: center; }
         
-        /* تنسيقات الشاشات */
         .auth-card { max-width: 400px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
         .hidden { display: none !important; }
         
@@ -54,7 +53,6 @@
 
 <!-- 1. شاشة تسجيل الدخول وإنشاء الحساب -->
 <div id="authSection" class="auth-card">
-    <!-- نموذج تسجيل الدخول -->
     <div id="loginForm">
         <h2>تسجيل الدخول</h2>
         <div class="form-group">
@@ -69,7 +67,6 @@
         <div class="toggle-link" onclick="toggleAuth('register')">ليس لديك حساب؟ قم بإنشاء حساب جديد</div>
     </div>
 
-    <!-- نموذج إنشاء حساب جديد -->
     <div id="registerForm" class="hidden">
         <h2>حساب جديد</h2>
         <div class="form-group">
@@ -89,7 +86,7 @@
     </div>
 </div>
 
-<!-- 2. الشاشة الرئيسية للتطبيق (تظهر فقط بعد الدخول) -->
+<!-- 2. الشاشة الرئيسية للتطبيق -->
 <div id="appSection" class="container hidden">
     <div class="header-bar">
         <div>
@@ -99,10 +96,8 @@
         <button class="btn btn-danger" onclick="handleLogout()">تسجيل الخروج</button>
     </div>
 
-    <!-- منطقة التنبيهات الفورية عند فتح التطبيق -->
     <div id="app-alerts"></div>
 
-    <!-- نموذج إضافة منتج -->
     <div style="background: #eef2f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
         <h3>إضافة / تحديث منتج</h3>
         
@@ -143,7 +138,6 @@
         <button class="btn btn-success" style="width:100%; font-size:16px;" onclick="addProduct()">حفظ المنتج في المخزن</button>
     </div>
 
-    <!-- جدول المخزون -->
     <h3>جدول المواد</h3>
     <table>
         <thead>
@@ -155,9 +149,7 @@
                 <th>الحالة</th>
             </tr>
         </thead>
-        <tbody id="inventoryTable">
-            <!-- سيتم إضافة البيانات هنا -->
-        </tbody>
+        <tbody id="inventoryTable"></tbody>
     </table>
 </div>
 
@@ -166,7 +158,6 @@
     let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
     let inventory = [];
 
-    // عند تحميل الصفحة
     window.onload = function() {
         if (currentUser) {
             showApp();
@@ -175,7 +166,6 @@
         }
     };
 
-    // إدارة الحسابات والشاشات
     function toggleAuth(form) {
         if (form === 'register') {
             document.getElementById('loginForm').classList.add('hidden');
@@ -244,13 +234,11 @@
         document.getElementById('appSection').classList.remove('hidden');
         document.getElementById('userWelcome').innerText = `أهلاً بك، ${currentUser.username} (${currentUser.phone})`;
 
-        // تحميل مخزون المستخدم الحالي فقط
         inventory = JSON.parse(localStorage.getItem(`inventory_${currentUser.phone}`)) || [];
         checkAlertsOnLaunch();
         renderTable();
     }
 
-    // 1. التنبيهات الفورية عند فتح التطبيق
     function checkAlertsOnLaunch() {
         const alertArea = document.getElementById('app-alerts');
         alertArea.innerHTML = '';
@@ -271,7 +259,7 @@
         if (expiredItems.length > 0) {
             alertArea.innerHTML += `
                 <div class="alert-box alert-danger" style="display:block;">
-                    <strong>تنبيه هائم:</strong> مواد منتهية الصلاحية: ${expiredItems.join(', ')}
+                    <strong>تنبيه هام:</strong> مواد منتهية الصلاحية: ${expiredItems.join(', ')}
                 </div>`;
         }
 
@@ -283,7 +271,6 @@
         }
     }
 
-    // 2. مسح الباركود
     function startBarcodeScanner() {
         const container = document.getElementById('scanner-container');
         container.style.display = 'block';
@@ -303,7 +290,6 @@
         });
     }
 
-    // 3. OCR مسح النصوص
     let videoStream = null;
 
     async function startOCR() {
@@ -333,35 +319,48 @@
         }
         document.getElementById('ocr-camera').style.display = 'none';
 
-        status.innerText = "جاري قراءة النص والتاريخ...";
+        status.innerText = "جاري قراءة تاريخ الانتهاء...";
 
         try {
             const result = await Tesseract.recognize(canvas, 'eng+ara');
             const text = result.data.text;
             
-            const dateMatch = text.match(/\d{2,4}[\/\.-]\d{1,2}[\/\.-]\d{2,4}/);
-            if (dateMatch) {
-                const rawDate = dateMatch[0].replace(/[\/\.]/g, '-');
-                const parts = rawDate.split('-');
+            // البحث المخصص عن تاريخ الانتهاء (المسبوق بـ E أو EXP)
+            let expiryMatch = text.match(/(?:E|EXP)\b.*?(\d{2,4}[\/\.-]\d{1,2}[\/\.-]\d{2,4})/i);
+            let rawDate = null;
+
+            if (expiryMatch && expiryMatch[1]) {
+                rawDate = expiryMatch[1];
+            } else {
+                // استخلاص كافة التواريخ وتصفية تاريخ الإنتاج إذا وجد
+                const allDates = text.match(/\d{2,4}[\/\.-]\d{1,2}[\/\.-]\d{2,4}/g);
+                if (allDates && allDates.length > 0) {
+                    // إذا وجد أكثر من تاريخ، نأخذ الأخير باعتباره تاريخ الانتهاء
+                    rawDate = allDates[allDates.length - 1];
+                }
+            }
+
+            if (rawDate) {
+                const formattedDate = rawDate.replace(/[\/\.]/g, '-');
+                const parts = formattedDate.split('-');
                 if (parts[0].length === 4) {
-                    document.getElementById('expiryDate').value = rawDate;
+                    document.getElementById('expiryDate').value = formattedDate;
                 } else if (parts[2].length === 4) {
                     document.getElementById('expiryDate').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
                 }
             }
 
-            const lines = text.split('\n').filter(l => l.trim().length > 2);
+            const lines = text.split('\n').filter(l => l.trim().length > 2 && !l.match(/\d{2,4}/));
             if (lines.length > 0) {
                 document.getElementById('itemName').value = lines[0].trim();
             }
 
-            status.innerText = "تمت القراءة بنجاح!";
+            status.innerText = "تم استخراج تاريخ الانتهاء بنجاح!";
         } catch (err) {
             status.innerText = "فشلت القراءة، يرجى الإدخال يدوياً.";
         }
     }
 
-    // 4. حفظ البيانات
     function addProduct() {
         const barcode = document.getElementById('barcode').value;
         const name = document.getElementById('itemName').value;
@@ -382,7 +381,6 @@
         renderTable();
     }
 
-    // 5. عرض الجدول
     function renderTable() {
         const tbody = document.getElementById('inventoryTable');
         tbody.innerHTML = '';
