@@ -1,0 +1,225 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>نظام الجرد الذكي 📦</title>
+    <!-- مكتبة قراءة الباركود عبر الكاميرا -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { background-color: #121212; color: #e0e0e0; min-height: 100vh; padding: 20px; display: flex; justify-content: center; }
+        .container { width: 100%; max-width: 600px; background: #1e1e1e; border-radius: 15px; padding: 20px; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        
+        .card { text-align: center; }
+        input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #333; background: #2a2a2a; color: white; font-size: 1rem; }
+        button { background-color: #00adb5; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
+        button:hover { background-color: #008c93; }
+        .btn-secondary { background-color: #393e46; margin-top: 5px; }
+
+        #interactive.viewport { width: 100%; height: 220px; border-radius: 10px; overflow: hidden; position: relative; background: #000; margin: 10px 0; }
+        #interactive.viewport video { width: 100%; height: 100%; object-fit: cover; }
+        
+        .product-card { background: #2a2a2a; border-radius: 10px; padding: 15px; margin-top: 10px; border-right: 5px solid #00adb5; text-align: right; }
+        .product-card.warning { border-right-color: #ff9f43; }
+        .product-card.danger { border-right-color: #ee5253; }
+        
+        .badge { display: inline-block; padding: 4px 8px; border-radius: 5px; font-size: 0.8rem; margin-top: 5px; }
+        .badge-warning { background: #ff9f43; color: #000; }
+        .badge-danger { background: #ee5253; color: #fff; }
+
+        .btn-action { width: auto; padding: 5px 15px; font-size: 0.9rem; margin-left: 5px; }
+        .hidden { display: none; }
+        .toggle-link { color: #00adb5; cursor: pointer; font-size: 0.9rem; text-decoration: underline; margin-top: 10px; display: inline-block; }
+    </style>
+</head>
+<body>
+
+<div class="container">
+
+    <!-- 1. شاشة تسجيل الدخول -->
+    <div id="loginSection" class="card">
+        <h2>تسجيل الدخول 🛒</h2>
+        <p style="color: #aaa; margin-bottom: 15px;">أدخل بيانات حسابك</p>
+        <input type="tel" id="loginPhone" placeholder="رقم الجوال">
+        <input type="password" id="loginPass" placeholder="كلمة المرور">
+        <button onclick="login()">دخول</button>
+        <span class="toggle-link" onclick="showRegister()">ليس لديك حساب؟ إنشاء حساب جديد</span>
+    </div>
+
+    <!-- 2. شاشة إنشاء حساب جديد -->
+    <div id="registerSection" class="card hidden">
+        <h2>إنشاء حساب جديد 📝</h2>
+        <p style="color: #aaa; margin-bottom: 15px;">سجل بياناتك للبدء في استخدام النظام</p>
+        <input type="tel" id="regPhone" placeholder="رقم الجوال">
+        <input type="password" id="regPass" placeholder="كلمة المرور">
+        <button onclick="register()">إنشاء الحساب</button>
+        <span class="toggle-link" onclick="showLogin()">لديك حساب بالفعل؟ تسجيل الدخول</span>
+    </div>
+
+    <!-- 3. لوحة التحكم بالجرد -->
+    <div id="appSection" class="hidden">
+        <h2>نظام الجرد الذكي 📦</h2>
+        <p id="welcomeMsg" style="color: #00adb5; font-size: 0.9rem; margin-bottom: 15px;"></p>
+
+        <button onclick="startScanner()">📷 مسح باركود إضافة مادة</button>
+        <div id="interactive" class="viewport hidden"></div>
+        <p id="scanResult" style="color: #00fff5; text-align: center; margin: 5px 0;"></p>
+
+        <hr style="border-color: #333; margin: 15px 0;">
+
+        <h3>المخزون الحالي:</h3>
+        <div id="productList"></div>
+        <button class="btn-secondary" onclick="logout()" style="margin-top: 20px;">تسجيل الخروج</button>
+    </div>
+
+</div>
+
+<script>
+    let currentUser = null;
+    let inventory = [];
+
+    function showRegister() {
+        document.getElementById('loginSection').classList.add('hidden');
+        document.getElementById('registerSection').classList.remove('hidden');
+    }
+
+    function showLogin() {
+        document.getElementById('registerSection').classList.add('hidden');
+        document.getElementById('loginSection').classList.remove('hidden');
+    }
+
+    function register() {
+        const phone = document.getElementById('regPhone').value;
+        const pass = document.getElementById('regPass').value;
+
+        if (!phone || !pass) {
+            alert('الرجاء إدخال رقم الجوال وكلمة المرور!');
+            return;
+        }
+
+        const users = JSON.parse(localStorage.getItem('inventory_users') || '{}');
+        if (users[phone]) {
+            alert('هذا الرقم مسجل بالفعل!');
+            return;
+        }
+
+        users[phone] = pass;
+        localStorage.setItem('inventory_users', JSON.stringify(users));
+        alert('تم إنشاء الحساب بنجاح! يمكنك الآن تسجيل الدخول.');
+        showLogin();
+    }
+
+    function login() {
+        const phone = document.getElementById('loginPhone').value;
+        const pass = document.getElementById('loginPass').value;
+
+        const users = JSON.parse(localStorage.getItem('inventory_users') || '{}');
+
+        if (users[phone] && users[phone] === pass) {
+            currentUser = phone;
+            document.getElementById('loginSection').classList.add('hidden');
+            document.getElementById('appSection').classList.remove('hidden');
+            document.getElementById('welcomeMsg').innerText = `مرحباً بك - حساب رقم: ${currentUser}`;
+            renderInventory();
+        } else {
+            alert('رقم الجوال أو كلمة المرور غير صحيحة!');
+        }
+    }
+
+    function logout() {
+        currentUser = null;
+        document.getElementById('appSection').classList.add('hidden');
+        document.getElementById('loginSection').classList.remove('hidden');
+    }
+
+    function renderInventory() {
+        const listDiv = document.getElementById('productList');
+        listDiv.innerHTML = '';
+
+        if (inventory.length === 0) {
+            listDiv.innerHTML = '<p style="color: #888; text-align: center; margin-top: 15px;">المخزن فارغ حالياً. امسح باركود لإضافة مواد.</p>';
+            return;
+        }
+
+        const today = new Date();
+
+        inventory.forEach((item, index) => {
+            const expDate = new Date(item.expDate);
+            const daysToExp = Math.ceil((expDate - today) / (1000 * 60 * 60 * 24));
+            
+            let statusClass = '';
+            let badges = '';
+
+            if (item.qty <= 3) {
+                statusClass = 'warning';
+                badges += `<span class="badge badge-warning">⚠️ كمية منخفضة!</span> `;
+            }
+
+            if (daysToExp <= 30) {
+                statusClass = 'danger';
+                badges += `<span class="badge badge-danger">⏳ ينتهي قريباً (${daysToExp} يوم)!</span>`;
+            }
+
+            listDiv.innerHTML += `
+                <div class="product-card ${statusClass}">
+                    <h4>${item.name} <small style="color:#aaa;">(#${item.id})</small></h4>
+                    <p>الكمية: <strong>${item.qty}</strong></p>
+                    <p>تاريخ الإضافة: ${item.addedDate}</p>
+                    <p>تاريخ الانتهاء: ${item.expDate}</p>
+                    <div>${badges}</div>
+                    <div style="margin-top: 10px;">
+                        <button class="btn-action" onclick="reduceQty(${index})">سحب (تخفيض 1) ➖</button>
+                    </div>
+                </div>
+            `;
+        });
+    }
+
+    function reduceQty(index) {
+        if (inventory[index].qty > 0) {
+            inventory[index].qty--;
+            renderInventory();
+        }
+    }
+
+    function startScanner() {
+        const viewport = document.getElementById('interactive');
+        viewport.classList.remove('hidden');
+
+        Quagga.init({
+            inputStream: { name: "Live", type: "LiveStream", target: viewport },
+            decoder: { readers: ["code_128_reader", "ean_reader", "ean_8_reader"] }
+        }, function(err) {
+            if (err) {
+                alert("تعذر فتح الكاميرا، يرجى السماح بصلاحيات الوصول.");
+                return;
+            }
+            Quagga.start();
+        });
+
+        Quagga.onDetected(function(result) {
+            const code = result.codeResult.code;
+            document.getElementById('scanResult').innerText = `تم مسح الباركود: ${code}`;
+            
+            const todayStr = new Date().toISOString().split('T')[0];
+            const nextMonth = new Date();
+            nextMonth.setDate(nextMonth.getDate() + 30);
+
+            inventory.push({
+                id: code,
+                name: "مادة جديدة " + code.slice(-4),
+                qty: 10,
+                addedDate: todayStr,
+                expDate: nextMonth.toISOString().split('T')[0]
+            });
+
+            Quagga.stop();
+            viewport.classList.add('hidden');
+            renderInventory();
+        });
+    }
+</script>
+
+</body>
+</html>
