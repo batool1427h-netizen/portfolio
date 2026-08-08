@@ -13,9 +13,11 @@
         
         .card { text-align: center; }
         input, button { width: 100%; padding: 12px; margin: 8px 0; border-radius: 8px; border: 1px solid #333; background: #2a2a2a; color: white; font-size: 1rem; }
+        label { display: block; text-align: right; margin-top: 8px; font-size: 0.9rem; color: #00adb5; }
         button { background-color: #00adb5; border: none; font-weight: bold; cursor: pointer; transition: 0.3s; }
         button:hover { background-color: #008c93; }
         .btn-secondary { background-color: #393e46; margin-top: 5px; }
+        .btn-cancel { background-color: #ee5253; }
 
         #interactive.viewport { width: 100%; height: 220px; border-radius: 10px; overflow: hidden; position: relative; background: #000; margin: 10px 0; }
         #interactive.viewport video { width: 100%; height: 100%; object-fit: cover; }
@@ -31,6 +33,8 @@
         .btn-action { width: auto; padding: 5px 15px; font-size: 0.9rem; margin-left: 5px; }
         .hidden { display: none; }
         .toggle-link { color: #00adb5; cursor: pointer; font-size: 0.9rem; text-decoration: underline; margin-top: 10px; display: inline-block; }
+        
+        .modal-form { background: #252525; padding: 15px; border-radius: 10px; border: 1px solid #00adb5; margin-top: 10px; }
     </style>
 </head>
 <body>
@@ -66,6 +70,23 @@
         <div id="interactive" class="viewport hidden"></div>
         <p id="scanResult" style="color: #00fff5; text-align: center; margin: 5px 0;"></p>
 
+        <!-- نموذج إدخال بيانات الكرتونة بعد قراءة الباركود -->
+        <div id="itemForm" class="modal-form hidden">
+            <h3 style="color: #00fff5; text-align: center; margin-bottom: 10px;">إدخال تفاصيل المادة 📦</h3>
+            
+            <label>اسم المادة:</label>
+            <input type="text" id="itemName" placeholder="مثال: حليب المراعي">
+
+            <label>الكمية الموجودة في الكرتونة:</label>
+            <input type="number" id="itemQty" min="1" placeholder="مثال: 12">
+
+            <label>تاريخ الانتهاء المكتوب على الكرتونة:</label>
+            <input type="date" id="itemExpDate">
+
+            <button onclick="saveItem()">💾 حفظ المادة في المخزن</button>
+            <button class="btn-cancel" onclick="cancelAdd()">إلغاء</button>
+        </div>
+
         <hr style="border-color: #333; margin: 15px 0;">
 
         <h3>المخزون الحالي:</h3>
@@ -78,6 +99,7 @@
 <script>
     let currentUser = null;
     let inventory = [];
+    let currentScannedCode = '';
 
     function showRegister() {
         document.getElementById('loginSection').classList.add('hidden');
@@ -185,6 +207,7 @@
 
     function startScanner() {
         const viewport = document.getElementById('interactive');
+        document.getElementById('itemForm').classList.add('hidden');
         viewport.classList.remove('hidden');
 
         Quagga.init({
@@ -200,24 +223,48 @@
 
         Quagga.onDetected(function(result) {
             const code = result.codeResult.code;
+            currentScannedCode = code;
             document.getElementById('scanResult').innerText = `تم مسح الباركود: ${code}`;
             
-            const todayStr = new Date().toISOString().split('T')[0];
-            const nextMonth = new Date();
-            nextMonth.setDate(nextMonth.getDate() + 30);
-
-            inventory.push({
-                id: code,
-                name: "مادة جديدة " + code.slice(-4),
-                qty: 10,
-                addedDate: todayStr,
-                expDate: nextMonth.toISOString().split('T')[0]
-            });
-
             Quagga.stop();
             viewport.classList.add('hidden');
-            renderInventory();
+            
+            // فتح نموذج تعبئة البيانات الخاصة بالكرتونة
+            document.getElementById('itemName').value = "مادة " + code.slice(-4);
+            document.getElementById('itemQty').value = "";
+            document.getElementById('itemExpDate').value = "";
+            document.getElementById('itemForm').classList.remove('hidden');
         });
+    }
+
+    function saveItem() {
+        const name = document.getElementById('itemName').value;
+        const qty = parseInt(document.getElementById('itemQty').value);
+        const expDate = document.getElementById('itemExpDate').value;
+
+        if (!name || isNaN(qty) || !expDate) {
+            alert('الرجاء تعبئة جميع البيانات (اسم المادة، الكمية، وتاريخ الانتهاء الصحيح)!');
+            return;
+        }
+
+        const todayStr = new Date().toISOString().split('T')[0];
+
+        inventory.push({
+            id: currentScannedCode,
+            name: name,
+            qty: qty,
+            addedDate: todayStr,
+            expDate: expDate
+        });
+
+        document.getElementById('itemForm').classList.add('hidden');
+        document.getElementById('scanResult').innerText = "تم حفظ المادة بنجاح! ✅";
+        renderInventory();
+    }
+
+    function cancelAdd() {
+        document.getElementById('itemForm').classList.add('hidden');
+        document.getElementById('scanResult').innerText = "";
     }
 </script>
 
