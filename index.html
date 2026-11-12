@@ -1,415 +1,1252 @@
 <!DOCTYPE html>
 <html lang="ar" dir="rtl">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام إدارة المخزون الذكي</title>
-    <!-- مكتبة مسح الباركود -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/quagga/0.12.1/quagga.min.js"></script>
-    <!-- مكتبة التعرف على النصوص OCR -->
-    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
-    
-    <style>
-        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 0; padding: 20px; background-color: #f4f7f6; }
-        .container { max-width: 800px; margin: auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        h2, h3 { color: #333; text-align: center; }
-        
-        .auth-card { max-width: 400px; margin: 40px auto; background: white; padding: 30px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
-        .hidden { display: none !important; }
-        
-        .alert-box { padding: 15px; margin-bottom: 20px; border-radius: 8px; display: none; }
-        .alert-danger { background-color: #f8d7da; color: #721c24; border: 1px solid #f5c6cb; }
-        .alert-warning { background-color: #fff3cd; color: #856404; border: 1px solid #ffeeba; }
-        
-        .form-group { margin-bottom: 15px; }
-        label { display: block; margin-bottom: 5px; font-weight: bold; color: #555; }
-        input[type="text"], input[type="password"], input[type="tel"], input[type="number"], input[type="date"] { 
-            width: 100%; padding: 10px; box-sizing: border-box; border: 1px solid #ccc; border-radius: 6px; font-size: 14px;
-        }
-        
-        .btn { padding: 10px 15px; border: none; border-radius: 6px; cursor: pointer; color: white; font-weight: bold; margin-top: 5px; transition: 0.2s; }
-        .btn-primary { background-color: #007bff; width: 100%; }
-        .btn-primary:hover { background-color: #0056b3; }
-        .btn-action { background-color: #007bff; }
-        .btn-success { background-color: #28a745; }
-        .btn-secondary { background-color: #6c757d; }
-        .btn-danger { background-color: #dc3545; }
-        
-        .header-bar { display: flex; justify-content: space-between; align-items: center; border-bottom: 2px solid #eee; padding-bottom: 15px; margin-bottom: 20px; }
-        
-        #scanner-container, #ocr-camera { width: 100%; height: 250px; background: #000; margin-top: 10px; display: none; position: relative; border-radius: 8px; overflow: hidden; }
-        #scanner-container video, #ocr-camera video { width: 100%; height: 100%; object-fit: cover; }
-        
-        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-        th, td { border: 1px solid #ddd; padding: 12px; text-align: center; }
-        th { background-color: #007bff; color: white; }
-        .expired { background-color: #ffcccc; color: #900; font-weight: bold; }
-        .low-stock { background-color: #fff3cd; }
-        
-        .toggle-link { text-align: center; margin-top: 15px; color: #007bff; cursor: pointer; font-size: 0.9em; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#0f766e">
+<title>نظام الجرد والتنبيهات</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Tajawal:wght@400;500;700;800&display=swap" rel="stylesheet">
+<script src="https://unpkg.com/html5-qrcode@2.3.8/html5-qrcode.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
+<style>
+:root{
+  --brand:#0f766e; --brand-d:#115e59; --brand-l:#ccfbf1;
+  --bg:#f2f6f7; --card:#ffffff; --ink:#0f172a; --muted:#64748b; --line:#e3e9ee;
+  --red:#dc2626; --red-l:#fee2e2; --amber:#b45309; --amber-l:#fef3c7;
+  --green:#15803d; --green-l:#dcfce7; --blue:#1d4ed8; --blue-l:#dbeafe;
+  --r:16px; --sh:0 1px 2px rgba(15,23,42,.05), 0 10px 28px rgba(15,23,42,.06);
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0}
+body{
+  font-family:'Tajawal',system-ui,'Segoe UI',Tahoma,sans-serif;
+  background:var(--bg); color:var(--ink); font-size:15px; line-height:1.6;
+  padding-bottom:env(safe-area-inset-bottom);
+}
+.hidden{display:none !important}
+h1,h2,h3,h4{margin:0;font-weight:700}
+button{font-family:inherit;font-size:inherit;cursor:pointer;border:0;background:none;color:inherit}
+input,select{font-family:inherit;font-size:16px}
+
+/* ---------- شاشة الدخول ---------- */
+#authView{min-height:100vh;display:flex;align-items:center;justify-content:center;padding:20px;
+  background:radial-gradient(1200px 500px at 50% -10%,#0f766e22,transparent 60%),var(--bg)}
+.auth-card{width:100%;max-width:400px;background:var(--card);border-radius:22px;box-shadow:var(--sh);padding:28px 22px}
+.brand{display:flex;flex-direction:column;align-items:center;gap:10px;margin-bottom:22px}
+.brand-mark{width:56px;height:56px;border-radius:16px;display:grid;place-items:center;
+  background:linear-gradient(140deg,var(--brand),#14b8a6);color:#fff}
+.brand-mark svg{width:30px;height:30px}
+.brand h1{font-size:20px}
+.brand p{margin:0;color:var(--muted);font-size:13px}
+.seg{display:flex;background:#eef2f5;border-radius:12px;padding:4px;margin-bottom:18px}
+.seg button{flex:1;padding:9px;border-radius:9px;font-weight:600;color:var(--muted);font-size:14px}
+.seg button.on{background:#fff;color:var(--brand);box-shadow:0 1px 3px rgba(0,0,0,.08)}
+
+/* ---------- عناصر عامة ---------- */
+.field{margin-bottom:14px}
+.field label{display:block;font-size:13px;font-weight:600;color:#475569;margin-bottom:6px}
+.input{width:100%;padding:12px 14px;border:1.5px solid var(--line);border-radius:11px;background:#fff;
+  color:var(--ink);transition:.15s;outline:none}
+.input:focus{border-color:var(--brand);box-shadow:0 0 0 3px #0f766e1a}
+.input::placeholder{color:#9aa8b6}
+textarea.input{resize:vertical;min-height:70px}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:7px;padding:12px 16px;
+  border-radius:12px;font-weight:700;transition:.15s;white-space:nowrap;font-size:14.5px}
+.btn:active{transform:scale(.985)}
+.btn-primary{background:var(--brand);color:#fff;width:100%}
+.btn-primary:hover{background:var(--brand-d)}
+.btn-ghost{background:#fff;border:1.5px solid var(--line);color:var(--ink)}
+.btn-soft{background:var(--brand-l);color:var(--brand-d)}
+.btn-danger{background:var(--red-l);color:var(--red)}
+.btn-sm{padding:8px 12px;border-radius:10px;font-size:13px}
+.btn-block{width:100%}
+.ico{width:18px;height:18px;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+.card{background:var(--card);border-radius:var(--r);box-shadow:var(--sh);padding:18px;margin-bottom:14px}
+.card-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+.card-title h3{font-size:16px}
+.card-title .sub{font-size:12.5px;color:var(--muted);font-weight:500}
+.hint{font-size:12.5px;color:var(--muted);line-height:1.55}
+.note{background:var(--blue-l);color:#1e3a8a;border-radius:12px;padding:11px 13px;font-size:13px;line-height:1.6}
+
+/* ---------- الهيكل ---------- */
+#appView{max-width:760px;margin:0 auto;padding:0 14px 96px}
+.topbar{position:sticky;top:0;z-index:40;background:linear-gradient(140deg,var(--brand),#0d9488);
+  color:#fff;margin:0 -14px 16px;padding:16px 18px calc(16px + env(safe-area-inset-top)) 18px;
+  border-radius:0 0 22px 22px;display:flex;align-items:center;gap:12px;box-shadow:0 6px 20px #0f766e33}
+.topbar .who{flex:1;min-width:0}
+.topbar h2{font-size:17px}
+.topbar small{opacity:.85;font-size:12px;display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.icon-btn{width:38px;height:38px;border-radius:11px;display:grid;place-items:center;background:#ffffff22;color:#fff}
+.tabbar{position:fixed;bottom:0;right:0;left:0;z-index:50;display:flex;background:#ffffff;border-top:1px solid var(--line);
+  padding:6px 4px calc(6px + env(safe-area-inset-bottom));max-width:760px;margin:0 auto;box-shadow:0 -4px 20px rgba(15,23,42,.06)}
+.tabbar button{flex:1;display:flex;flex-direction:column;align-items:center;gap:3px;padding:6px 2px;color:#94a3b8;font-size:11px;font-weight:600;border-radius:10px}
+.tabbar button.on{color:var(--brand)}
+.tabbar button.on .ico{stroke-width:2.4}
+.view{animation:fade .18s ease}
+@keyframes fade{from{opacity:0;transform:translateY(4px)}to{opacity:1;transform:none}}
+
+/* ---------- لوحة التحكم ---------- */
+.stats{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+.stat{background:var(--card);border-radius:14px;padding:14px;box-shadow:var(--sh);position:relative;overflow:hidden}
+.stat .n{font-size:26px;font-weight:800;line-height:1.1}
+.stat .l{font-size:12px;color:var(--muted);font-weight:600}
+.stat .bar{position:absolute;top:0;right:0;width:4px;height:100%}
+.stat.a .n{color:var(--brand)} .stat.a .bar{background:var(--brand)}
+.stat.b .n{color:var(--amber)} .stat.b .bar{background:var(--amber)}
+.stat.c .n{color:var(--red)}   .stat.c .bar{background:var(--red)}
+.stat.d .n{color:var(--blue)}  .stat.d .bar{background:var(--blue)}
+.quick{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+
+/* ---------- قائمة المنتجات ---------- */
+.toolbar{display:flex;gap:8px;margin-bottom:12px}
+.chips{display:flex;gap:7px;overflow-x:auto;padding-bottom:6px;margin-bottom:12px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{padding:7px 13px;border-radius:20px;background:#fff;border:1.5px solid var(--line);
+  font-size:13px;font-weight:600;color:var(--muted);white-space:nowrap}
+.chip.on{background:var(--brand);border-color:var(--brand);color:#fff}
+.item{background:var(--card);border-radius:14px;padding:13px 14px;margin-bottom:9px;box-shadow:var(--sh);
+  border-right:4px solid transparent;display:flex;gap:12px;align-items:flex-start}
+.item.s-exp{border-right-color:var(--red)}
+.item.s-soon{border-right-color:var(--amber)}
+.item.s-low{border-right-color:var(--blue)}
+.item.s-ok{border-right-color:#22c55e}
+.item .main{flex:1;min-width:0}
+.item .name{font-weight:700;font-size:14.5px;margin-bottom:3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .meta{font-size:12px;color:var(--muted);display:flex;flex-wrap:wrap;gap:4px 10px}
+.item .meta span{display:inline-flex;align-items:center;gap:4px}
+.badge{font-size:11px;font-weight:700;padding:2px 8px;border-radius:7px;display:inline-block}
+.b-exp{background:var(--red-l);color:var(--red)}
+.b-soon{background:var(--amber-l);color:var(--amber)}
+.b-low{background:var(--blue-l);color:var(--blue)}
+.b-ok{background:var(--green-l);color:var(--green)}
+.qtybox{display:flex;align-items:center;gap:6px}
+.qbtn{width:30px;height:30px;border-radius:9px;background:#eef2f5;color:var(--brand-d);
+  display:grid;place-items:center;font-size:18px;font-weight:700;line-height:1}
+.qval{min-width:34px;text-align:center;font-weight:800;font-size:15px}
+.empty{text-align:center;padding:34px 16px;color:var(--muted)}
+.empty svg{width:44px;height:44px;stroke:#cbd5e1;margin-bottom:8px}
+
+/* ---------- المودال ---------- */
+.modal{position:fixed;inset:0;z-index:100;background:#0f172a99;display:flex;align-items:flex-end;justify-content:center;
+  backdrop-filter:blur(2px)}
+.modal .sheet{background:#fff;width:100%;max-width:760px;border-radius:22px 22px 0 0;padding:18px 18px calc(18px + env(safe-area-inset-bottom));
+  max-height:92vh;overflow:auto;animation:up .22s ease}
+@keyframes up{from{transform:translateY(30px)}to{transform:none}}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:14px}
+#reader{width:100%;border-radius:14px;overflow:hidden;background:#000}
+#reader video{border-radius:14px}
+.toast{position:fixed;bottom:96px;right:50%;transform:translateX(50%) translateY(20px);z-index:200;
+  background:#0f172a;color:#fff;padding:11px 18px;border-radius:12px;font-size:13.5px;font-weight:600;
+  opacity:0;transition:.25s;pointer-events:none;max-width:88vw;text-align:center;box-shadow:0 8px 30px #00000033}
+.toast.show{opacity:1;transform:translateX(50%) translateY(0)}
+.toast.err{background:#b91c1c}
+.toast.ok{background:#15803d}
+.spin{width:16px;height:16px;border:2px solid #ffffff55;border-top-color:#fff;border-radius:50%;animation:sp .7s linear infinite}
+@keyframes sp{to{transform:rotate(360deg)}}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.alertrow{display:flex;align-items:center;gap:10px;padding:9px 0;border-bottom:1px solid #f1f5f9;font-size:13.5px}
+.alertrow:last-child{border-bottom:0}
+.dot{width:8px;height:8px;border-radius:50%;flex:0 0 auto}
+.logline{font-size:12.5px;color:var(--muted);padding:7px 0;border-bottom:1px dashed #eef2f5}
+.logline b{color:var(--ink);font-weight:600}
+@media(min-width:620px){
+  .stats{grid-template-columns:repeat(4,1fr)}
+}
+</style>
 </head>
 <body>
 
-<!-- 1. شاشة تسجيل الدخول وإنشاء الحساب -->
-<div id="authSection" class="auth-card">
-    <div id="loginForm">
-        <h2>تسجيل الدخول</h2>
-        <div class="form-group">
-            <label>رقم الهاتف أو اسم المستخدم:</label>
-            <input type="text" id="loginUsername" placeholder="أدخل اسم المستخدم أو الهاتف">
-        </div>
-        <div class="form-group">
-            <label>الرقم السري:</label>
-            <input type="password" id="loginPassword" placeholder="أدخل الرقم السري">
-        </div>
-        <button class="btn btn-primary" onclick="handleLogin()">دخول</button>
-        <div class="toggle-link" onclick="toggleAuth('register')">ليس لديك حساب؟ قم بإنشاء حساب جديد</div>
+<div id="toast" class="toast"></div>
+
+<!-- ================= الدخول ================= -->
+<section id="authView">
+  <div class="auth-card">
+    <div class="brand">
+      <div class="brand-mark">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M3 7l9-4 9 4-9 4-9-4z"/><path d="M3 12l9 4 9-4"/><path d="M3 17l9 4 9-4"/>
+        </svg>
+      </div>
+      <h1>نظام الجرد والتنبيهات</h1>
+      <p>باركود • كميات • تنبيهات SMS قبل الانتهاء</p>
     </div>
 
-    <div id="registerForm" class="hidden">
-        <h2>حساب جديد</h2>
-        <div class="form-group">
-            <label>اسم المستخدم:</label>
-            <input type="text" id="regUsername" placeholder="اسمك أو اسم المحل">
-        </div>
-        <div class="form-group">
-            <label>رقم الهاتف:</label>
-            <input type="tel" id="regPhone" placeholder="05XXXXXXXX">
-        </div>
-        <div class="form-group">
-            <label>الرقم السري:</label>
-            <input type="password" id="regPassword" placeholder="أدخل الرقم السري">
-        </div>
-        <button class="btn btn-primary" onclick="handleRegister()">إنشاء الحساب</button>
-        <div class="toggle-link" onclick="toggleAuth('login')">لديك حساب بالفعل؟ تسجيل الدخول</div>
+    <div class="seg">
+      <button id="tabLogin" class="on" onclick="authTab('login')">دخول</button>
+      <button id="tabReg" onclick="authTab('reg')">حساب جديد</button>
     </div>
+
+    <div id="loginPane">
+      <div class="field">
+        <label>رقم الجوال</label>
+        <input class="input" id="loginPhone" type="tel" inputmode="tel" placeholder="05XXXXXXXX" autocomplete="username">
+      </div>
+      <div class="field">
+        <label>الرقم السري</label>
+        <input class="input" id="loginPin" type="password" inputmode="numeric" placeholder="••••" autocomplete="current-password">
+      </div>
+      <button class="btn btn-primary" onclick="doLogin()">دخول</button>
+    </div>
+
+    <div id="regPane" class="hidden">
+      <div class="field">
+        <label>الاسم / اسم المتجر</label>
+        <input class="input" id="regName" placeholder="مثال: بقالة الوفاء">
+      </div>
+      <div class="field">
+        <label>رقم الجوال (يستقبل التنبيهات)</label>
+        <input class="input" id="regPhone" type="tel" inputmode="tel" placeholder="05XXXXXXXX">
+      </div>
+      <div class="field">
+        <label>رقم سري (4 أرقام على الأقل)</label>
+        <input class="input" id="regPin" type="password" inputmode="numeric" placeholder="••••">
+      </div>
+      <button class="btn btn-primary" onclick="doRegister()">إنشاء الحساب</button>
+    </div>
+
+    <div style="text-align:center;margin-top:16px">
+      <button class="btn btn-sm btn-ghost" onclick="openServerSetup()">إعداد الخادم</button>
+    </div>
+  </div>
+</section>
+
+<!-- ================= التطبيق ================= -->
+<section id="appView" class="hidden">
+  <div class="topbar">
+    <div class="who">
+      <h2 id="shopName">نظام الجرد</h2>
+      <small id="whoPhone"></small>
+    </div>
+    <button class="icon-btn" title="تسجيل الخروج" onclick="logout()">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+    </button>
+  </div>
+
+  <!-- لوحة التحكم -->
+  <div id="view-dash" class="view">
+    <div class="stats">
+      <div class="stat a"><div class="bar"></div><div class="n" id="stTotal">0</div><div class="l">إجمالي الأصناف</div></div>
+      <div class="stat d"><div class="bar"></div><div class="n" id="stQty">0</div><div class="l">مجموع القطع</div></div>
+      <div class="stat b"><div class="bar"></div><div class="n" id="stSoon">0</div><div class="l">قريب الانتهاء</div></div>
+      <div class="stat c"><div class="bar"></div><div class="n" id="stExp">0</div><div class="l">منتهي الصلاحية</div></div>
+    </div>
+
+    <div class="quick" style="margin-bottom:14px">
+      <button class="btn btn-primary" onclick="go('add')">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg> إضافة صنف
+      </button>
+      <button class="btn btn-ghost" onclick="scanIntoForm()">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><path d="M7 12h10"/></svg> مسح باركود
+      </button>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <h3>يحتاج انتباهك</h3>
+        <span class="sub" id="dashAlertsCount"></span>
+      </div>
+      <div id="dashAlerts"></div>
+    </div>
+  </div>
+
+  <!-- المخزون -->
+  <div id="view-stock" class="view hidden">
+    <div class="toolbar">
+      <input class="input" id="searchBox" placeholder="ابحث بالاسم أو الباركود…" oninput="renderStock()">
+      <button class="btn btn-ghost btn-sm" onclick="exportCsv()" title="تصدير Excel">
+        <svg class="ico" viewBox="0 0 24 24"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M5 21h14"/></svg>
+      </button>
+    </div>
+    <div class="chips" id="filters">
+      <button class="chip on" data-f="all" onclick="setFilter('all')">الكل</button>
+      <button class="chip" data-f="soon" onclick="setFilter('soon')">قريب الانتهاء</button>
+      <button class="chip" data-f="exp" onclick="setFilter('exp')">منتهي</button>
+      <button class="chip" data-f="low" onclick="setFilter('low')">كمية منخفضة</button>
+    </div>
+    <div id="stockList"></div>
+  </div>
+
+  <!-- إضافة / تعديل -->
+  <div id="view-add" class="view hidden">
+    <div class="card">
+      <div class="card-title">
+        <h3 id="formTitle">إضافة صنف جديد</h3>
+        <span class="sub" id="formEditId"></span>
+      </div>
+
+      <div class="field">
+        <label>الباركود</label>
+        <div style="display:flex;gap:8px">
+          <input class="input" id="fBarcode" placeholder="امسح أو اكتب الباركود">
+          <button class="btn btn-soft" onclick="openScanner('fBarcode')" style="flex:0 0 auto">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M3 7V5a2 2 0 012-2h2M17 3h2a2 2 0 012 2v2M21 17v2a2 2 0 01-2 2h-2M7 21H5a2 2 0 01-2-2v-2"/><path d="M7 12h10"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <div class="field">
+        <label>اسم المنتج</label>
+        <input class="input" id="fName" placeholder="مثال: حليب المراعي 1 لتر">
+      </div>
+
+      <div class="field">
+        <label>تاريخ الانتهاء</label>
+        <div style="display:flex;gap:8px">
+          <input class="input" id="fExpiry" type="date">
+          <button class="btn btn-soft" onclick="document.getElementById('ocrFile').click()" style="flex:0 0 auto" title="قراءة التاريخ من صورة">
+            <svg class="ico" viewBox="0 0 24 24"><path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z"/><circle cx="12" cy="13" r="4"/></svg>
+          </button>
+        </div>
+        <div class="hint" id="ocrStatus" style="margin-top:6px">صوّري تاريخ الانتهاء على العلبة لقراءته تلقائياً.</div>
+        <input type="file" id="ocrFile" accept="image/*" capture="environment" class="hidden" onchange="runOcr(this)">
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label>الكمية</label>
+          <input class="input" id="fQty" type="number" min="0" value="0" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label>الوحدة</label>
+          <select class="input" id="fUnit">
+            <option>حبة</option><option>علبة</option><option>كرتون</option>
+            <option>كيلو</option><option>لتر</option><option>كيس</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="grid2">
+        <div class="field">
+          <label>حد التنبيه (الكمية)</label>
+          <input class="input" id="fMin" type="number" min="0" placeholder="5" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label>الموقع / الرف</label>
+          <input class="input" id="fLoc" placeholder="رف ٣">
+        </div>
+      </div>
+
+      <div class="field">
+        <label>التصنيف (اختياري)</label>
+        <input class="input" id="fCat" placeholder="ألبان، تنظيف، معلبات…">
+      </div>
+
+      <div style="display:flex;gap:9px;margin-top:6px">
+        <button class="btn btn-primary" onclick="saveItem()" id="saveBtn">حفظ</button>
+        <button class="btn btn-danger hidden" id="delBtn" onclick="deleteItem()">حذف</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- التنبيهات -->
+  <div id="view-alerts" class="view hidden">
+    <div class="card">
+      <div class="card-title"><h3>تنبيهات حالية</h3></div>
+      <div id="alertsFull"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title">
+        <h3>الرسائل المرسلة</h3>
+        <span class="sub" id="providerName"></span>
+      </div>
+      <div id="alertLogs"><div class="hint">لا يوجد سجل بعد.</div></div>
+      <div style="display:flex;gap:9px;margin-top:14px">
+        <button class="btn btn-soft btn-block" onclick="testSms()">إرسال رسالة تجريبية</button>
+        <button class="btn btn-ghost btn-block" onclick="runCheck()">فحص الآن</button>
+      </div>
+      <div class="hint" style="margin-top:10px">الفحص التلقائي يعمل يومياً الساعة ٨ صباحاً من الخادم، ويصلك SMS حتى لو كان التطبيق مغلقاً.</div>
+    </div>
+  </div>
+
+  <!-- الإعدادات -->
+  <div id="view-settings" class="view hidden">
+    <div class="card">
+      <div class="card-title"><h3>الخادم والاتصال</h3></div>
+      <div class="field">
+        <label>رابط الخادم (Apps Script Web App)</label>
+        <input class="input" id="setBackend" placeholder="https://script.google.com/macros/s/.../exec" dir="ltr" style="text-align:left">
+      </div>
+      <div style="display:flex;gap:9px">
+        <button class="btn btn-primary btn-sm" onclick="saveBackend()">حفظ واختبار</button>
+        <button class="btn btn-ghost btn-sm" onclick="saveBackend(true)">حفظ فقط</button>
+      </div>
+      <div class="hint" id="connStatus" style="margin-top:8px"></div>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><h3>إعدادات التنبيه</h3></div>
+      <div class="grid2">
+        <div class="field">
+          <label>التنبيه قبل الانتهاء (يوم)</label>
+          <input class="input" id="setWarn" type="number" min="1" max="180" inputmode="numeric">
+        </div>
+        <div class="field">
+          <label>حد الكمية الافتراضي</label>
+          <input class="input" id="setMin" type="number" min="0" inputmode="numeric">
+        </div>
+      </div>
+      <button class="btn btn-primary btn-sm" onclick="saveSettings()">حفظ الإعدادات</button>
+    </div>
+
+    <div class="card">
+      <div class="card-title"><h3>البيانات</h3></div>
+      <div style="display:flex;flex-direction:column;gap:9px">
+        <button class="btn btn-ghost" onclick="exportCsv()">تصدير المخزون (CSV)</button>
+        <button class="btn btn-ghost" onclick="runCheck()">فحص التنبيهات وإرسال SMS الآن</button>
+        <button class="btn btn-danger" onclick="logout()">تسجيل الخروج</button>
+      </div>
+      <div class="hint" style="margin-top:12px" id="modeInfo"></div>
+    </div>
+  </div>
+
+  <nav class="tabbar">
+    <button data-tab="dash" class="on" onclick="go('dash')">
+      <svg class="ico" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
+      الرئيسية
+    </button>
+    <button data-tab="stock" onclick="go('stock')">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4"/><path d="M12 11v10"/></svg>
+      المخزون
+    </button>
+    <button data-tab="add" onclick="go('add')">
+      <svg class="ico" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/></svg>
+      إضافة
+    </button>
+    <button data-tab="alerts" onclick="go('alerts')">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M18 8a6 6 0 10-12 0c0 7-3 8-3 8h18s-3-1-3-8"/><path d="M13.7 21a2 2 0 01-3.4 0"/></svg>
+      التنبيهات
+    </button>
+    <button data-tab="settings" onclick="go('settings')">
+      <svg class="ico" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/><circle cx="9" cy="6" r="2" fill="#fff"/><circle cx="15" cy="12" r="2" fill="#fff"/><circle cx="8" cy="18" r="2" fill="#fff"/></svg>
+      الإعدادات
+    </button>
+  </nav>
+</section>
+
+<!-- مودال المسح -->
+<div id="scanModal" class="modal hidden">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h3>مسح الباركود</h3>
+      <button class="btn btn-sm btn-ghost" onclick="closeScanner()">إغلاق</button>
+    </div>
+    <div id="reader"></div>
+    <div class="hint" style="margin-top:10px" id="scanHint">وجّهي الكاميرا نحو الباركود…</div>
+    <button class="btn btn-ghost btn-block" onclick="document.getElementById('scanFile').click()" style="margin-top:10px">اختيار صورة من المعرض</button>
+    <input type="file" id="scanFile" accept="image/*" class="hidden" onchange="scanFromFile(this)">
+  </div>
 </div>
 
-<!-- 2. الشاشة الرئيسية للتطبيق -->
-<div id="appSection" class="container hidden">
-    <div class="header-bar">
-        <div>
-            <h2 style="margin:0; text-align:right;">نظام إدارة المخزون</h2>
-            <small id="userWelcome" style="color:#666;"></small>
-        </div>
-        <button class="btn btn-danger" onclick="handleLogout()">تسجيل الخروج</button>
+<!-- مودال إعداد الخادم -->
+<div id="srvModal" class="modal hidden">
+  <div class="sheet">
+    <div class="sheet-head">
+      <h3>إعداد الخادم</h3>
+      <button class="btn btn-sm btn-ghost" onclick="document.getElementById('srvModal').classList.add('hidden')">إغلاق</button>
     </div>
-
-    <div id="app-alerts"></div>
-
-    <div style="background: #eef2f5; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-        <h3>إضافة / تحديث منتج</h3>
-        
-        <div class="form-group">
-            <label>الباركود:</label>
-            <div style="display: flex; gap: 5px;">
-                <input type="text" id="barcode" placeholder="امسح الباركود أو أدخله">
-                <button class="btn btn-action" onclick="startBarcodeScanner()">مسح الباركود</button>
-            </div>
-            <div id="scanner-container"></div>
-        </div>
-
-        <div class="form-group">
-            <label>اسم المنتج وتاريخ الانتهاء (عبر الكاميرا OCR):</label>
-            <button class="btn btn-secondary" onclick="startOCR()">مسح النص/التاريخ بالصورة</button>
-            <span id="ocr-status" style="margin-right: 10px; font-size: 0.9em; color: #555;"></span>
-            <div id="ocr-camera">
-                <video id="ocr-video" autoplay></video>
-                <button class="btn btn-success" style="position: absolute; bottom: 10px; right: 10px;" onclick="captureAndProcessOCR()">التقاط وقراءة</button>
-            </div>
-        </div>
-
-        <div class="form-group">
-            <label>اسم المنتج:</label>
-            <input type="text" id="itemName" placeholder="اسم المنتج">
-        </div>
-
-        <div class="form-group">
-            <label>تاريخ الانتهاء:</label>
-            <input type="date" id="expiryDate">
-        </div>
-
-        <div class="form-group">
-            <label>الكمية:</label>
-            <input type="number" id="quantity" value="1" min="1">
-        </div>
-
-        <button class="btn btn-success" style="width:100%; font-size:16px;" onclick="addProduct()">حفظ المنتج في المخزن</button>
+    <div class="note">الصق رابط النشر من Google Apps Script (ينتهي بـ <span dir="ltr">/exec</span>). بدونه يعمل التطبيق محلياً فقط ولن تُرسل رسائل SMS.</div>
+    <div class="field" style="margin-top:14px">
+      <label>رابط الخادم</label>
+      <input class="input" id="srvUrl" dir="ltr" style="text-align:left" placeholder="https://script.google.com/macros/s/.../exec">
     </div>
-
-    <h3>جدول المواد</h3>
-    <table>
-        <thead>
-            <tr>
-                <th>الباركود</th>
-                <th>اسم المادة</th>
-                <th>تاريخ الانتهاء</th>
-                <th>الكمية</th>
-                <th>الحالة</th>
-            </tr>
-        </thead>
-        <tbody id="inventoryTable"></tbody>
-    </table>
+    <button class="btn btn-primary" onclick="saveBackend()">حفظ واختبار الاتصال</button>
+  </div>
 </div>
 
 <script>
-    let users = JSON.parse(localStorage.getItem('users')) || [];
-    let currentUser = JSON.parse(localStorage.getItem('currentUser')) || null;
-    let inventory = [];
+/* ============================================================
+   الحالة والإعدادات
+   ============================================================ */
+const LS_CFG   = 'inv_cfg_v2';
+const LS_USERS = 'inv_users_v2';
+const LS_ITEMS = 'inv_items_v2_';
 
-    window.onload = function() {
-        if (currentUser) {
-            showApp();
-        } else {
-            showAuth();
-        }
+const S = {
+  cfg: null,          // { backendUrl, phone, name, token }
+  items: [],
+  warnDays: 30,
+  minQty: 5,
+  filter: 'all',
+  editing: null,
+  scanner: null,
+  scanTarget: null
+};
+
+function loadCfg() {
+  try { S.cfg = JSON.parse(localStorage.getItem(LS_CFG)) || null; }
+  catch (e) { S.cfg = null; }
+  return S.cfg;
+}
+function saveCfg() { localStorage.setItem(LS_CFG, JSON.stringify(S.cfg)); }
+function isCloud() { return !!(S.cfg && S.cfg.backendUrl); }
+
+/* ============================================================
+   طبقة الاتصال — JSONP (يعمل مع Apps Script من أي نطاق)
+   ============================================================ */
+function jsonp(params, timeoutMs) {
+  return new Promise(function (resolve, reject) {
+    const cb = 'cb_' + Math.random().toString(36).slice(2);
+    const url = S.cfg.backendUrl + '?' + new URLSearchParams(Object.assign({}, params, { callback: cb })).toString();
+    const script = document.createElement('script');
+    let done = false;
+    const timer = setTimeout(function () {
+      if (done) return; done = true;
+      cleanup(); reject(new Error('انتهت مهلة الاتصال بالخادم'));
+    }, timeoutMs || 25000);
+
+    function cleanup() {
+      clearTimeout(timer);
+      delete window[cb];
+      if (script.parentNode) script.parentNode.removeChild(script);
+    }
+    window[cb] = function (data) {
+      if (done) return; done = true;
+      cleanup(); resolve(data);
     };
+    script.onerror = function () {
+      if (done) return; done = true;
+      cleanup(); reject(new Error('تعذر الوصول للخادم — تأكدي من الرابط وأن النشر متاح للجميع'));
+    };
+    script.src = url;
+    document.body.appendChild(script);
+  });
+}
 
-    function toggleAuth(form) {
-        if (form === 'register') {
-            document.getElementById('loginForm').classList.add('hidden');
-            document.getElementById('registerForm').classList.remove('hidden');
-        } else {
-            document.getElementById('registerForm').classList.add('hidden');
-            document.getElementById('loginForm').classList.remove('hidden');
-        }
+async function api(action, params) {
+  params = params || {};
+  if (isCloud()) {
+    const res = await jsonp(Object.assign({ action: action, token: S.cfg.token || '' }, params));
+    if (!res) throw new Error('رد فارغ من الخادم');
+    return res;
+  }
+  return localApi(action, params);
+}
+
+/* ---------- وضع محلي (بدون خادم) — للتجربة فقط ---------- */
+function lightHash(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) | 0;
+  return 'h' + (h >>> 0).toString(16);
+}
+function normPhone(p) {
+  let s = String(p || '').replace(/[^\d+]/g, '');
+  if (!s) return '';
+  if (s[0] === '+') s = s.slice(1);
+  if (s.indexOf('00') === 0) s = s.slice(2);
+  if (s.indexOf('966') === 0) return '0' + s.slice(3);
+  return s;
+}
+function localUsers() { try { return JSON.parse(localStorage.getItem(LS_USERS)) || []; } catch (e) { return []; } }
+function localItems(phone) { try { return JSON.parse(localStorage.getItem(LS_ITEMS + phone)) || []; } catch (e) { return []; } }
+function localSaveItems(phone, arr) { localStorage.setItem(LS_ITEMS + phone, JSON.stringify(arr)); }
+
+function localApi(action, p) {
+  const users = localUsers();
+  const phone = normPhone(p.phone || (S.cfg && S.cfg.phone));
+
+  if (action === 'register') {
+    if (!phone || phone.length < 10) return { ok: false, error: 'رقم الجوال غير صحيح' };
+    if (!p.name) return { ok: false, error: 'الاسم مطلوب' };
+    if (!p.pin || p.pin.length < 4) return { ok: false, error: 'الرقم السري 4 أرقام على الأقل' };
+    if (users.some(function (u) { return u.phone === phone; })) return { ok: false, error: 'هذا الرقم مسجّل مسبقاً' };
+    users.push({ name: p.name, phone: phone, pin: lightHash(p.pin) });
+    localStorage.setItem(LS_USERS, JSON.stringify(users));
+    return { ok: true, data: { token: 'local', name: p.name, phone: phone } };
+  }
+  if (action === 'login') {
+    const u = users.find(function (x) { return x.phone === phone && x.pin === lightHash(p.pin); });
+    if (!u) return { ok: false, error: 'بيانات الدخول غير صحيحة' };
+    return { ok: true, data: { token: 'local', name: u.name, phone: u.phone } };
+  }
+  if (action === 'list') {
+    const cfg = JSON.parse(localStorage.getItem('inv_local_cfg') || '{}');
+    return { ok: true, data: {
+      items: localItems(phone),
+      warnDays: cfg.warnDays || 30,
+      minQty: cfg.minQty || 5
+    }};
+  }
+  if (action === 'save') {
+    const it = JSON.parse(p.item || '{}');
+    if (!it.name) return { ok: false, error: 'اسم المنتج مطلوب' };
+    const arr = localItems(phone);
+    if (it.id) {
+      const i = arr.findIndex(function (x) { return x.id === it.id; });
+      if (i > -1) { arr[i] = Object.assign(arr[i], it, { updatedAt: new Date().toISOString() }); }
+      else arr.push(Object.assign({ id: it.id }, it));
+    } else if (it.barcode) {
+      const ex = arr.find(function (x) { return String(x.barcode) === String(it.barcode); });
+      if (ex) { ex.qty = (Number(ex.qty) || 0) + (Number(it.qty) || 0); }
+      else arr.push(Object.assign({ id: 'p' + Date.now() }, it));
+    } else {
+      arr.push(Object.assign({ id: 'p' + Date.now() }, it));
     }
-
-    function handleRegister() {
-        const username = document.getElementById('regUsername').value.trim();
-        const phone = document.getElementById('regPhone').value.trim();
-        const password = document.getElementById('regPassword').value.trim();
-
-        if (!username || !phone || !password) {
-            alert('يرجى تعبئة جميع الحقول!');
-            return;
-        }
-
-        const userExists = users.some(u => u.phone === phone || u.username === username);
-        if (userExists) {
-            alert('اسم المستخدم أو رقم الهاتف مسجل مسبقاً!');
-            return;
-        }
-
-        const newUser = { username, phone, password };
-        users.push(newUser);
-        localStorage.setItem('users', JSON.stringify(users));
-
-        currentUser = newUser;
-        localStorage.setItem('currentUser', JSON.stringify(currentUser));
-        
-        alert('تم إنشاء الحساب بنجاح!');
-        showApp();
+    localSaveItems(phone, arr);
+    return { ok: true, data: {} };
+  }
+  if (action === 'remove') {
+    localSaveItems(phone, localItems(phone).filter(function (x) { return x.id !== p.id; }));
+    return { ok: true };
+  }
+  if (action === 'adjust') {
+    const arr = localItems(phone);
+    const it = arr.find(function (x) { return x.id === p.id; });
+    if (!it) return { ok: false, error: 'غير موجود' };
+    it.qty = Math.max(0, (Number(it.qty) || 0) + Number(p.delta));
+    localSaveItems(phone, arr);
+    return { ok: true, data: { qty: it.qty } };
+  }
+  if (action === 'getConfig' || action === 'saveConfig') {
+    const cfg = JSON.parse(localStorage.getItem('inv_local_cfg') || '{}');
+    if (action === 'saveConfig') {
+      cfg.warnDays = Number(p.warnDays) || 30;
+      cfg.minQty = Number(p.minQty) || 5;
+      localStorage.setItem('inv_local_cfg', JSON.stringify(cfg));
     }
+    return { ok: true, data: { warnDays: cfg.warnDays || 30, minQty: cfg.minQty || 5 } };
+  }
+  if (action === 'logs') return { ok: true, data: { logs: [], provider: 'محلي (بدون رسائل)' } };
+  if (action === 'testSms' || action === 'runCheck') {
+    return { ok: false, error: 'الرسائل تحتاج ربط الخادم أولاً — اضغطي «إعداد الخادم»' };
+  }
+  return { ok: false, error: 'إجراء غير معروف' };
+}
 
-    function handleLogin() {
-        const input = document.getElementById('loginUsername').value.trim();
-        const password = document.getElementById('loginPassword').value.trim();
+/* ============================================================
+   أدوات واجهة
+   ============================================================ */
+function toast(msg, type) {
+  const el = document.getElementById('toast');
+  el.textContent = msg;
+  el.className = 'toast show ' + (type || '');
+  clearTimeout(el._t);
+  el._t = setTimeout(function () { el.className = 'toast ' + (type || ''); }, 3200);
+}
+function $(id) { return document.getElementById(id); }
+function esc(s) {
+  return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) {
+    return ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[c];
+  });
+}
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+function daysLeft(expiry) {
+  if (!expiry) return null;
+  const a = new Date(todayStr() + 'T00:00:00');
+  const b = new Date(String(expiry).slice(0, 10) + 'T00:00:00');
+  return Math.round((b - a) / 86400000);
+}
 
-        const user = users.find(u => (u.username === input || u.phone === input) && u.password === password);
+/* ============================================================
+   المصادقة
+   ============================================================ */
+function authTab(which) {
+  const isLogin = which === 'login';
+  $('tabLogin').classList.toggle('on', isLogin);
+  $('tabReg').classList.toggle('on', !isLogin);
+  $('loginPane').classList.toggle('hidden', !isLogin);
+  $('regPane').classList.toggle('hidden', isLogin);
+}
 
-        if (user) {
-            currentUser = user;
-            localStorage.setItem('currentUser', JSON.stringify(currentUser));
-            showApp();
-        } else {
-            alert('بيانات الدخول غير صحيحة!');
-        }
+async function doLogin() {
+  const phone = $('loginPhone').value.trim();
+  const pin = $('loginPin').value.trim();
+  if (!phone || !pin) return toast('أدخلي الجوال والرقم السري', 'err');
+  try {
+    const r = await api('login', { phone: phone, pin: pin });
+    if (!r.ok) return toast(r.error || 'فشل الدخول', 'err');
+    S.cfg = { backendUrl: S.cfg ? S.cfg.backendUrl : '', phone: r.data.phone, name: r.data.name, token: r.data.token };
+    saveCfg();
+    showApp();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function doRegister() {
+  const name = $('regName').value.trim();
+  const phone = $('regPhone').value.trim();
+  const pin = $('regPin').value.trim();
+  if (!name || !phone || !pin) return toast('عبّي كل الحقول', 'err');
+  try {
+    const r = await api('register', { name: name, phone: phone, pin: pin });
+    if (!r.ok) return toast(r.error || 'فشل التسجيل', 'err');
+    S.cfg = { backendUrl: S.cfg ? S.cfg.backendUrl : '', phone: r.data.phone, name: r.data.name, token: r.data.token };
+    saveCfg();
+    showApp();
+    toast('تم إنشاء الحساب', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+function logout() {
+  localStorage.removeItem(LS_CFG);
+  S.cfg = null; S.items = [];
+  $('appView').classList.add('hidden');
+  $('authView').classList.remove('hidden');
+  $('loginPin').value = '';
+}
+
+function showApp() {
+  $('authView').classList.add('hidden');
+  $('appView').classList.remove('hidden');
+  $('shopName').textContent = (S.cfg && S.cfg.name) || 'نظام الجرد';
+  $('whoPhone').textContent = (S.cfg && S.cfg.phone) || '';
+  $('setBackend').value = (S.cfg && S.cfg.backendUrl) || '';
+  $('modeInfo').textContent = isCloud()
+    ? 'متصل بالخادم — البيانات محفوظة في Google Sheets والتنبيهات تُرسل SMS.'
+    : 'وضع محلي: البيانات في هذا المتصفح فقط، ولا تُرسل رسائل. اربطي الخادم لتفعيل SMS.';
+  go('dash');
+  refresh();
+}
+
+/* ============================================================
+   التنقل والقراءة
+   ============================================================ */
+function go(view, keepEdit) {
+  ['dash', 'stock', 'add', 'alerts', 'settings'].forEach(function (v) {
+    $('view-' + v).classList.toggle('hidden', v !== view);
+  });
+  document.querySelectorAll('.tabbar button').forEach(function (b) {
+    b.classList.toggle('on', b.dataset.tab === view);
+  });
+  if (view === 'add' && !keepEdit) resetForm();
+  if (view === 'alerts') { renderAlerts(); loadLogs(); }
+  if (view === 'settings') { $('setWarn').value = S.warnDays; $('setMin').value = S.minQty; }
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+async function refresh() {
+  if (!S.cfg) return;
+  try {
+    const r = await api('list');
+    if (!r.ok) {
+      if (/توكن|جلسة/.test(r.error || '')) { toast('الجلسة انتهت', 'err'); logout(); return; }
+      return toast(r.error || 'تعذر تحميل البيانات', 'err');
     }
+    S.items = r.data.items || [];
+    S.warnDays = r.data.warnDays || 30;
+    S.minQty = r.data.minQty || 5;
+    renderAll();
+  } catch (e) { toast(e.message, 'err'); }
+}
 
-    function handleLogout() {
-        localStorage.removeItem('currentUser');
-        currentUser = null;
-        showAuth();
-    }
+function statusOf(it) {
+  const d = daysLeft(it.expiry);
+  const minQ = Number(it.minQty) || S.minQty;
+  if (d !== null && d < 0) return { code: 'exp', cls: 's-exp', badge: 'b-exp', text: 'منتهي' };
+  if (d !== null && d <= S.warnDays) return { code: 'soon', cls: 's-soon', badge: 'b-soon', text: 'ينتهي خلال ' + d + ' يوم' };
+  if (Number(it.qty) <= minQ) return { code: 'low', cls: 's-low', badge: 'b-low', text: 'كمية منخفضة' };
+  return { code: 'ok', cls: 's-ok', badge: 'b-ok', text: 'سليم' };
+}
 
-    function showAuth() {
-        document.getElementById('authSection').classList.remove('hidden');
-        document.getElementById('appSection').classList.add('hidden');
-    }
+function renderAll() { renderDash(); renderStock(); renderAlerts(); }
 
-    function showApp() {
-        document.getElementById('authSection').classList.add('hidden');
-        document.getElementById('appSection').classList.remove('hidden');
-        document.getElementById('userWelcome').innerText = `أهلاً بك، ${currentUser.username} (${currentUser.phone})`;
+function renderDash() {
+  const total = S.items.length;
+  const qty = S.items.reduce(function (a, x) { return a + (Number(x.qty) || 0); }, 0);
+  let soon = 0, exp = 0;
+  S.items.forEach(function (it) {
+    const c = statusOf(it).code;
+    if (c === 'exp') exp++; else if (c === 'soon') soon++;
+  });
+  $('stTotal').textContent = total;
+  $('stQty').textContent = qty;
+  $('stSoon').textContent = soon;
+  $('stExp').textContent = exp;
 
-        inventory = JSON.parse(localStorage.getItem(`inventory_${currentUser.phone}`)) || [];
-        checkAlertsOnLaunch();
-        renderTable();
-    }
+  const need = S.items.filter(function (it) { return statusOf(it).code !== 'ok'; })
+    .sort(function (a, b) { return (daysLeft(a.expiry) ?? 9999) - (daysLeft(b.expiry) ?? 9999); });
 
-    function checkAlertsOnLaunch() {
-        const alertArea = document.getElementById('app-alerts');
-        alertArea.innerHTML = '';
-        const today = new Date().toISOString().split('T')[0];
+  $('dashAlertsCount').textContent = need.length ? need.length + ' صنف' : '';
+  const box = $('dashAlerts');
+  if (!need.length) {
+    box.innerHTML = '<div class="empty" style="padding:18px 8px">' +
+      '<svg viewBox="0 0 24 24" fill="none" stroke-width="1.6" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><path d="M8 12l3 3 5-6"/></svg>' +
+      '<div>كل شيء تحت السيطرة</div></div>';
+    return;
+  }
+  box.innerHTML = need.slice(0, 6).map(function (it) {
+    const st = statusOf(it);
+    const d = daysLeft(it.expiry);
+    const sub = it.expiry
+      ? (d < 0 ? 'انتهى قبل ' + Math.abs(d) + ' يوم' : 'ينتهي ' + it.expiry)
+      : 'بدون تاريخ';
+    return '<div class="alertrow" onclick="editItem(\'' + it.id + '\')" style="cursor:pointer">' +
+      '<span class="dot" style="background:' + (st.code === 'exp' ? '#dc2626' : st.code === 'soon' ? '#d97706' : '#1d4ed8') + '"></span>' +
+      '<div style="flex:1;min-width:0"><div style="font-weight:600;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">' + esc(it.name) + '</div>' +
+      '<div style="font-size:12px;color:#64748b">' + esc(sub) + ' • الكمية ' + it.qty + '</div></div>' +
+      '<span class="badge ' + st.badge + '">' + st.text + '</span></div>';
+  }).join('');
+}
 
-        let expiredItems = [];
-        let lowStockItems = [];
+function setFilter(f) {
+  S.filter = f;
+  document.querySelectorAll('#filters .chip').forEach(function (c) {
+    c.classList.toggle('on', c.dataset.f === f);
+  });
+  renderStock();
+}
 
-        inventory.forEach(item => {
-            if (item.expiryDate && item.expiryDate <= today) {
-                expiredItems.push(item.name);
-            }
-            if (parseInt(item.quantity) <= 5) {
-                lowStockItems.push(`${item.name} (${item.quantity})`);
-            }
-        });
+function renderStock() {
+  const q = ($('searchBox').value || '').trim().toLowerCase();
+  let list = S.items.slice();
+  if (S.filter !== 'all') list = list.filter(function (it) { return statusOf(it).code === S.filter; });
+  if (q) list = list.filter(function (it) {
+    return (it.name || '').toLowerCase().indexOf(q) > -1 || String(it.barcode || '').indexOf(q) > -1;
+  });
+  list.sort(function (a, b) {
+    const pa = statusOf(a).code === 'ok' ? 1 : 0, pb = statusOf(b).code === 'ok' ? 1 : 0;
+    if (pa !== pb) return pa - pb;
+    return (daysLeft(a.expiry) ?? 9999) - (daysLeft(b.expiry) ?? 9999);
+  });
 
-        if (expiredItems.length > 0) {
-            alertArea.innerHTML += `
-                <div class="alert-box alert-danger" style="display:block;">
-                    <strong>تنبيه هام:</strong> مواد منتهية الصلاحية: ${expiredItems.join(', ')}
-                </div>`;
-        }
+  const box = $('stockList');
+  if (!S.items.length) {
+    box.innerHTML = '<div class="empty"><svg viewBox="0 0 24 24" fill="none" stroke-width="1.5" stroke-linecap="round"><path d="M3 7l9-4 9 4v10l-9 4-9-4z"/><path d="M3 7l9 4 9-4"/><path d="M12 11v10"/></svg>' +
+      '<div>المخزون فاضي — أضيفي أول صنف</div></div>';
+    return;
+  }
+  if (!list.length) { box.innerHTML = '<div class="empty">لا توجد نتائج مطابقة</div>'; return; }
 
-        if (lowStockItems.length > 0) {
-            alertArea.innerHTML += `
-                <div class="alert-box alert-warning" style="display:block;">
-                    <strong>تحذير كمية:</strong> مواد كميتها منخفضة: ${lowStockItems.join(', ')}
-                </div>`;
-        }
-    }
+  box.innerHTML = list.map(function (it) {
+    const st = statusOf(it);
+    return '<div class="item ' + st.cls + '">' +
+      '<div class="main" onclick="editItem(\'' + it.id + '\')" style="cursor:pointer">' +
+        '<div class="name">' + esc(it.name) + '</div>' +
+        '<div class="meta">' +
+          (it.barcode ? '<span dir="ltr">' + esc(it.barcode) + '</span>' : '') +
+          '<span>' + (it.expiry ? 'ينتهي ' + esc(it.expiry) : 'بدون تاريخ') + '</span>' +
+          (it.location ? '<span>موقع ' + esc(it.location) + '</span>' : '') +
+        '</div>' +
+        '<div style="margin-top:6px"><span class="badge ' + st.badge + '">' + st.text + '</span></div>' +
+      '</div>' +
+      '<div class="qtybox">' +
+        '<button class="qbtn" onclick="adjust(\'' + it.id + '\',-1)">−</button>' +
+        '<span class="qval">' + it.qty + '</span>' +
+        '<button class="qbtn" onclick="adjust(\'' + it.id + '\',1)">+</button>' +
+      '</div>' +
+    '</div>';
+  }).join('');
+}
 
-    function startBarcodeScanner() {
-        const container = document.getElementById('scanner-container');
-        container.style.display = 'block';
+function renderAlerts() {
+  const groups = [
+    { code: 'exp', title: 'منتهي الصلاحية', color: '#dc2626' },
+    { code: 'soon', title: 'قريب الانتهاء', color: '#d97706' },
+    { code: 'low', title: 'كمية منخفضة', color: '#1d4ed8' }
+  ];
+  let html = '';
+  groups.forEach(function (g) {
+    const arr = S.items.filter(function (it) { return statusOf(it).code === g.code; });
+    html += '<div style="margin-bottom:12px"><div style="font-size:13px;font-weight:700;color:' + g.color + ';margin-bottom:4px">' +
+      g.title + ' (' + arr.length + ')</div>';
+    if (!arr.length) html += '<div class="hint">لا يوجد</div>';
+    else html += arr.map(function (it) {
+      const d = daysLeft(it.expiry);
+      const extra = g.code === 'exp' ? ' — منذ ' + Math.abs(d) + ' يوم'
+        : g.code === 'soon' ? ' — باقي ' + d + ' يوم'
+        : ' — المتبقي ' + it.qty;
+      return '<div class="alertrow"><span class="dot" style="background:' + g.color + '"></span>' +
+        '<div style="flex:1">' + esc(it.name) + '<span style="color:#94a3b8;font-size:12px">' + extra + '</span></div></div>';
+    }).join('');
+    html += '</div>';
+  });
+  $('alertsFull').innerHTML = html || '<div class="hint">لا يوجد شيء</div>';
+}
 
-        Quagga.init({
-            inputStream: { name: "Live", type: "LiveStream", target: container },
-            decoder: { readers: ["code_128_reader", "ean_reader", "ean_8_reader"] }
-        }, function(err) {
-            if (err) { alert("تعذر فتح الكاميرا للباركود"); return; }
-            Quagga.start();
-        });
-
-        Quagga.onDetected(function(result) {
-            document.getElementById('barcode').value = result.codeResult.code;
-            Quagga.stop();
-            container.style.display = 'none';
-        });
-    }
-
-    let videoStream = null;
-
-    async function startOCR() {
-        const ocrContainer = document.getElementById('ocr-camera');
-        const video = document.getElementById('ocr-video');
-        ocrContainer.style.display = 'block';
-
-        try {
-            videoStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: "environment" } });
-            video.srcObject = videoStream;
-        } catch (e) {
-            alert("تعذر الوصول للكاميرا");
-        }
-    }
-
-    async function captureAndProcessOCR() {
-        const video = document.getElementById('ocr-video');
-        const status = document.getElementById('ocr-status');
-        
-        const canvas = document.createElement('canvas');
-        canvas.width = video.videoWidth;
-        canvas.height = video.videoHeight;
-        canvas.getContext('2d').drawImage(video, 0, 0);
-
-        if (videoStream) {
-            videoStream.getTracks().forEach(track => track.stop());
-        }
-        document.getElementById('ocr-camera').style.display = 'none';
-
-        status.innerText = "جاري قراءة تاريخ الانتهاء...";
-
-        try {
-            const result = await Tesseract.recognize(canvas, 'eng+ara');
-            const text = result.data.text;
-            
-            // البحث المخصص عن تاريخ الانتهاء (المسبوق بـ E أو EXP)
-            let expiryMatch = text.match(/(?:E|EXP)\b.*?(\d{2,4}[\/\.-]\d{1,2}[\/\.-]\d{2,4})/i);
-            let rawDate = null;
-
-            if (expiryMatch && expiryMatch[1]) {
-                rawDate = expiryMatch[1];
-            } else {
-                // استخلاص كافة التواريخ وتصفية تاريخ الإنتاج إذا وجد
-                const allDates = text.match(/\d{2,4}[\/\.-]\d{1,2}[\/\.-]\d{2,4}/g);
-                if (allDates && allDates.length > 0) {
-                    // إذا وجد أكثر من تاريخ، نأخذ الأخير باعتباره تاريخ الانتهاء
-                    rawDate = allDates[allDates.length - 1];
-                }
-            }
-
-            if (rawDate) {
-                const formattedDate = rawDate.replace(/[\/\.]/g, '-');
-                const parts = formattedDate.split('-');
-                if (parts[0].length === 4) {
-                    document.getElementById('expiryDate').value = formattedDate;
-                } else if (parts[2].length === 4) {
-                    document.getElementById('expiryDate').value = `${parts[2]}-${parts[1].padStart(2,'0')}-${parts[0].padStart(2,'0')}`;
-                }
-            }
-
-            const lines = text.split('\n').filter(l => l.trim().length > 2 && !l.match(/\d{2,4}/));
-            if (lines.length > 0) {
-                document.getElementById('itemName').value = lines[0].trim();
-            }
-
-            status.innerText = "تم استخراج تاريخ الانتهاء بنجاح!";
-        } catch (err) {
-            status.innerText = "فشلت القراءة، يرجى الإدخال يدوياً.";
-        }
-    }
-
-    function addProduct() {
-        const barcode = document.getElementById('barcode').value;
-        const name = document.getElementById('itemName').value;
-        const expiryDate = document.getElementById('expiryDate').value;
-        const quantity = document.getElementById('quantity').value;
-
-        if (!name) { alert("يرجى إدخال اسم المنتج"); return; }
-
-        inventory.push({ barcode, name, expiryDate, quantity });
-        localStorage.setItem(`inventory_${currentUser.phone}`, JSON.stringify(inventory));
-
-        document.getElementById('barcode').value = '';
-        document.getElementById('itemName').value = '';
-        document.getElementById('expiryDate').value = '';
-        document.getElementById('quantity').value = '1';
-
-        checkAlertsOnLaunch();
-        renderTable();
-    }
-
-    function renderTable() {
-        const tbody = document.getElementById('inventoryTable');
-        tbody.innerHTML = '';
-        const today = new Date().toISOString().split('T')[0];
-
-        inventory.forEach((item) => {
-            let rowClass = '';
-            let statusText = 'سليم';
-
-            if (item.expiryDate && item.expiryDate <= today) {
-                rowClass = 'expired';
-                statusText = 'منتهي الصلاحية';
-            } else if (parseInt(item.quantity) <= 5) {
-                rowClass = 'low-stock';
-                statusText = 'منخفض الكمية';
-            }
-
-            tbody.innerHTML += `
-                <tr class="${rowClass}">
-                    <td>${item.barcode || '-'}</td>
-                    <td>${item.name}</td>
-                    <td>${item.expiryDate || '-'}</td>
-                    <td>${item.quantity}</td>
-                    <td>${statusText}</td>
-                </tr>
-            `;
-        });
-    }
+async function loadLogs() {
+  const box = $('alertLogs');
+  if (!isCloud()) {
+    box.innerHTML = '<div class="hint">الرسائل تحتاج ربط الخادم.</div>';
+    return;
+  }
+  try {
+    const r = await api('logs');
+    if (!r.ok) { box.innerHTML = '<div class="hint">' + esc(r.error || '') + '</div>'; return; }
+    $('providerName').textContent = r.data.provider || '';
+    const logs = r.data.logs || [];
+    box.innerHTML = logs.length ? logs.map(function (l) {
+      return '<div class="logline"><b>' + esc(l.time) + '</b> — ' + esc(l.message).replace(/\n/g, ' · ') +
+        (l.status === 'sent' ? ' <span style="color:#15803d">✓</span>' : ' <span style="color:#dc2626">✕</span>') + '</div>';
+    }).join('') : '<div class="hint">لا يوجد سجل بعد.</div>';
+  } catch (e) { box.innerHTML = '<div class="hint">' + esc(e.message) + '</div>'; }
+}
 </script>
 
+<script>
+/* ============================================================
+   النموذج (إضافة / تعديل)
+   ============================================================ */
+function resetForm() {
+  S.editing = null;
+  ['fBarcode', 'fName', 'fExpiry', 'fLoc', 'fCat'].forEach(function (id) { $(id).value = ''; });
+  $('fQty').value = 0;
+  $('fUnit').value = 'حبة';
+  $('fMin').value = '';
+  $('formTitle').textContent = 'إضافة صنف جديد';
+  $('formEditId').textContent = '';
+  $('delBtn').classList.add('hidden');
+  $('saveBtn').textContent = 'حفظ الصنف';
+  $('ocrStatus').textContent = 'صوّري تاريخ الانتهاء على العلبة لقراءته تلقائياً.';
+}
+
+function editItem(id) {
+  const it = S.items.find(function (x) { return String(x.id) === String(id); });
+  if (!it) return;
+  S.editing = it.id;
+  $('fBarcode').value = it.barcode || '';
+  $('fName').value = it.name || '';
+  $('fExpiry').value = it.expiry || '';
+  $('fQty').value = it.qty || 0;
+  $('fUnit').value = it.unit || 'حبة';
+  $('fMin').value = (it.minQty === undefined || it.minQty === null) ? '' : it.minQty;
+  $('fLoc').value = it.location || '';
+  $('fCat').value = it.category || '';
+  $('formTitle').textContent = 'تعديل الصنف';
+  $('formEditId').textContent = '#' + String(it.id).slice(-4);
+  $('delBtn').classList.remove('hidden');
+  $('saveBtn').textContent = 'حفظ التعديلات';
+  go('add', true);
+}
+
+async function saveItem() {
+  const name = $('fName').value.trim();
+  if (!name) return toast('اكتبي اسم المنتج', 'err');
+
+  const item = {
+    id: S.editing || '',
+    barcode: $('fBarcode').value.trim(),
+    name: name,
+    qty: Number($('fQty').value) || 0,
+    unit: $('fUnit').value,
+    expiry: $('fExpiry').value || '',
+    minQty: $('fMin').value === '' ? '' : Number($('fMin').value),
+    location: $('fLoc').value.trim(),
+    category: $('fCat').value.trim()
+  };
+
+  const btn = $('saveBtn');
+  btn.disabled = true; btn.innerHTML = '<span class="spin"></span> جاري الحفظ';
+  try {
+    const r = await api('save', { item: JSON.stringify(item) });
+    if (!r.ok) { toast(r.error || 'فشل الحفظ', 'err'); return; }
+    toast(S.editing ? 'تم تحديث الصنف' : 'تمت إضافة الصنف', 'ok');
+    resetForm();
+    await refresh();
+    go('stock');
+  } catch (e) {
+    toast(e.message, 'err');
+  } finally {
+    btn.disabled = false;
+    btn.textContent = S.editing ? 'حفظ التعديلات' : 'حفظ الصنف';
+  }
+}
+
+async function deleteItem() {
+  if (!S.editing) return;
+  if (!confirm('حذف هذا الصنف نهائياً؟')) return;
+  try {
+    const r = await api('remove', { id: S.editing });
+    if (!r.ok) return toast(r.error || 'فشل الحذف', 'err');
+    toast('تم الحذف', 'ok');
+    resetForm();
+    await refresh();
+    go('stock');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function adjust(id, delta) {
+  const it = S.items.find(function (x) { return String(x.id) === String(id); });
+  if (!it) return;
+  const before = it.qty;
+  it.qty = Math.max(0, (Number(it.qty) || 0) + delta);  // تحديث متفائل
+  renderAll();
+  try {
+    const r = await api('adjust', { id: id, delta: delta });
+    if (!r.ok) { it.qty = before; renderAll(); toast(r.error || 'فشل التعديل', 'err'); }
+  } catch (e) {
+    it.qty = before; renderAll(); toast(e.message, 'err');
+  }
+}
+
+/* ============================================================
+   مسح الباركود
+   ============================================================ */
+function scanIntoForm() {
+  go('add');
+  setTimeout(function () { openScanner('fBarcode'); }, 120);
+}
+
+function openScanner(targetId) {
+  S.scanTarget = targetId || null;
+  $('scanModal').classList.remove('hidden');
+  $('scanHint').textContent = 'وجّهي الكاميرا نحو الباركود…';
+  if (typeof Html5Qrcode === 'undefined') {
+    $('scanHint').textContent = 'مكتبة المسح لم تُحمّل — استخدمي «اختيار صورة» أو اكتبي الرقم يدوياً.';
+    return;
+  }
+  S.scanner = new Html5Qrcode('reader', { verbose: false });
+  S.scanner.start(
+    { facingMode: 'environment' },
+    { fps: 10, qrbox: { width: 280, height: 170 } },
+    function (text) {
+      stopScan();
+      $('scanModal').classList.add('hidden');
+      const el = $(S.scanTarget || 'fBarcode');
+      if (el) { el.value = text; el.dispatchEvent(new Event('input')); }
+      toast('تم قراءة الباركود: ' + text, 'ok');
+    },
+    function () { /* تجاهل أخطاء الإطارات */ }
+  ).catch(function (err) {
+    $('scanHint').textContent = 'لم نتمكن من فتح الكاميرا: ' + (err && err.message ? err.message : '') +
+      ' — استخدمي «اختيار صورة من المعرض».';
+  });
+}
+
+function stopScan() {
+  if (S.scanner) {
+    try { S.scanner.stop().then(function () { S.scanner.clear(); }).catch(function () {}); } catch (e) {}
+    S.scanner = null;
+  }
+}
+function closeScanner() {
+  stopScan();
+  $('scanModal').classList.add('hidden');
+}
+
+function scanFromFile(input) {
+  const file = input.files && input.files[0];
+  if (!file) return;
+  stopScan();
+  $('scanHint').textContent = 'جاري قراءة الصورة…';
+  const tmp = new Html5Qrcode('reader', { verbose: false });
+  tmp.scanFile(file, true).then(function (text) {
+    const el = $(S.scanTarget || 'fBarcode');
+    if (el) el.value = text;
+    $('scanModal').classList.add('hidden');
+    toast('تم قراءة الباركود: ' + text, 'ok');
+    tmp.clear();
+  }).catch(function () {
+    $('scanHint').textContent = 'لم يُعثر على باركود واضح في الصورة — جرّبي صورة أقرب.';
+    tmp.clear();
+  });
+  input.value = '';
+}
+
+/* ============================================================
+   قراءة تاريخ الانتهاء من صورة (OCR)
+   ============================================================ */
+function parseDateFromText(text) {
+  const clean = text.replace(/[Oo]/g, '0').replace(/[Il|]/g, '1');
+  const candidates = [];
+
+  // 1) تواريخ بصيغة EXP / E / ينتهي
+  const tagged = clean.match(/(?:EXP?|E\s*[:.]?|ينتهي|انتهاء|صلاحية)[^\d]{0,12}(\d{1,4})\s*[\/\.\-]\s*(\d{1,2})\s*[\/\.\-]\s*(\d{1,4})/i);
+  if (tagged) candidates.push([tagged[1], tagged[2], tagged[3]]);
+
+  // 2) أي تواريخ في النص
+  const all = clean.match(/(\d{1,4})\s*[\/\.\-]\s*(\d{1,2})\s*[\/\.\-]\s*(\d{1,4})/g) || [];
+  all.forEach(function (t) {
+    const m = t.match(/(\d{1,4})\s*[\/\.\-]\s*(\d{1,2})\s*[\/\.\-]\s*(\d{1,4})/);
+    if (m) candidates.push([m[1], m[2], m[3]]);
+  });
+
+  // 3) صيغة MM/YYYY أو شهر/سنة
+  if (!candidates.length) {
+    const mmYY = clean.match(/\b(\d{1,2})\s*[\/\.\-]\s*(\d{2}|\d{4})\b/);
+    if (mmYY) candidates.push(['01', mmYY[1], mmYY[2]]);
+  }
+  if (!candidates.length) return null;
+
+  // نأخذ أحدث تاريخ (تاريخ الانتهاء عادةً الأكبر)
+  const parsed = candidates.map(function (c) {
+    let a = c[0], b = c[1], d = c[2];
+    let y, m, day;
+    if (a.length === 4) { y = +a; m = +b; day = +d; }
+    else if (d.length === 4) { y = +d; m = +b; day = +a; }
+    else if (d.length === 2) { y = 2000 + +d; m = +b; day = +a; }
+    else return null;
+    if (y < 100) y += 2000;
+    if (m > 12 && day <= 12) { const t = m; m = day; day = t; }
+    if (!(y >= 2015 && y <= 2100) || !(m >= 1 && m <= 12)) return null;
+    if (!(day >= 1 && day <= 31)) day = 1;
+    return y + '-' + String(m).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+  }).filter(Boolean);
+
+  if (!parsed.length) return null;
+  parsed.sort();
+  return parsed[parsed.length - 1];
+}
+
+async function runOcr(input) {
+  const file = input.files && input.files[0];
+  input.value = '';
+  if (!file) return;
+  const status = $('ocrStatus');
+  status.textContent = 'جاري قراءة الصورة… قد يستغرق أول مرة ١٠-٢٠ ثانية.';
+  if (typeof Tesseract === 'undefined') {
+    status.textContent = 'مكتبة القراءة لم تُحمّل — أدخلي التاريخ يدوياً.';
+    return;
+  }
+  try {
+    const res = await Tesseract.recognize(file, 'eng', {
+      logger: function (m) {
+        if (m.status === 'recognizing text') {
+          status.textContent = 'جاري القراءة… ' + Math.round((m.progress || 0) * 100) + '%';
+        }
+      }
+    });
+    const text = res.data.text || '';
+    const date = parseDateFromText(text);
+
+    if (date) {
+      $('fExpiry').value = date;
+      status.textContent = 'تم استخراج تاريخ الانتهاء: ' + date + ' — تأكدي منه قبل الحفظ.';
+    } else {
+      const guess = /[0-9]{1,2}[\/\.\-][0-9]{4}/.exec(text);
+      status.textContent = guess
+        ? 'قرأنا: ' + guess[0] + ' — عدّليه يدوياً إن لزم.'
+        : 'لم نجد تاريخاً واضحاً. صوّري الجزء المكتوب عليه EXP فقط وأعيدي المحاولة.';
+    }
+
+    if (!$('fName').value) {
+      const line = text.split('\n').map(function (l) { return l.trim(); })
+        .filter(function (l) { return l.length > 3 && !/\d{2,}/.test(l); })[0];
+      if (line) $('fName').value = line.substring(0, 60);
+    }
+  } catch (e) {
+    status.textContent = 'فشلت القراءة: ' + (e.message || '') + ' — أدخلي التاريخ يدوياً.';
+  }
+}
+
+/* ============================================================
+   الإعدادات والخادم
+   ============================================================ */
+function openServerSetup() {
+  $('srvUrl').value = (S.cfg && S.cfg.backendUrl) || '';
+  $('srvModal').classList.remove('hidden');
+}
+
+async function saveBackend(noTest) {
+  let url = ($('setBackend').value || $('srvUrl').value || '').trim();
+  if (url && !/^https:\/\/script\.google\.com\//.test(url)) {
+    if (!confirm('الرابط لا يبدو رابط Apps Script. المتابعة؟')) return;
+  }
+  url = url.replace(/\?.*$/, '');
+  $('srvModal').classList.add('hidden');
+
+  S.cfg = S.cfg || { name: '', phone: '', token: '' };
+  const old = S.cfg.backendUrl;
+  S.cfg.backendUrl = url;
+  saveCfg();
+  $('setBackend').value = url;
+  $('modeInfo').textContent = url
+    ? 'متصل بالخادم — البيانات في Google Sheets والتنبيهات تُرسل SMS.'
+    : 'وضع محلي: البيانات في هذا المتصفح فقط، ولا تُرسل رسائل.';
+
+  if (!url) { toast('تم الحفظ — وضع محلي', 'ok'); return; }
+  if (noTest) { toast('تم حفظ الرابط', 'ok'); return; }
+
+  $('connStatus').textContent = 'جاري اختبار الاتصال…';
+  try {
+    const r = await jsonp({ action: 'ping' }, 20000);
+    if (r && r.ok) {
+      toast('الاتصال ناجح — الخادم يعمل', 'ok');
+      $('connStatus').textContent = '✓ متصل — المزوّد: ' + (r.data.provider || '') + ' • إصدار ' + (r.data.version || '');
+    } else {
+      toast('استجابة غير متوقعة من الخادم', 'err');
+      $('connStatus').textContent = '✕ ' + JSON.stringify(r).slice(0, 160);
+    }
+  } catch (e) {
+    S.cfg.backendUrl = old; saveCfg();
+    toast(e.message, 'err');
+    $('connStatus').textContent = '✕ ' + e.message;
+  }
+}
+
+async function saveSettings() {
+  const warnDays = Number($('setWarn').value) || 30;
+  const minQty = Number($('setMin').value) || 5;
+  try {
+    const r = await api('saveConfig', { warnDays: warnDays, minQty: minQty });
+    if (!r.ok) return toast(r.error || 'فشل الحفظ', 'err');
+    S.warnDays = r.data.warnDays;
+    S.minQty = r.data.minQty;
+    renderAll();
+    toast('تم حفظ إعدادات التنبيه', 'ok');
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function testSms() {
+  if (!isCloud()) return toast('اربطي الخادم أولاً', 'err');
+  toast('جاري إرسال الرسالة…');
+  try {
+    const r = await api('testSms');
+    if (r.ok) toast('تم إرسال الرسالة — تفقدي جوالك', 'ok');
+    else toast(r.error || 'فشل الإرسال', 'err');
+    loadLogs();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+async function runCheck() {
+  if (!isCloud()) return toast('اربطي الخادم أولاً', 'err');
+  toast('جاري الفحص والإرسال…');
+  try {
+    const r = await api('runCheck');
+    if (!r.ok) return toast(r.error || 'فشل الفحص', 'err');
+    const sent = (r.data || []).filter(function (x) { return x.sent; }).length;
+    toast(sent ? 'تم إرسال ' + sent + ' رسالة' : 'لا تنبيهات جديدة للإرسال', sent ? 'ok' : '');
+    loadLogs();
+  } catch (e) { toast(e.message, 'err'); }
+}
+
+/* ============================================================
+   تصدير CSV
+   ============================================================ */
+function exportCsv() {
+  if (!S.items.length) return toast('لا يوجد بيانات', 'err');
+  const rows = [['الباركود', 'الاسم', 'التصنيف', 'الكمية', 'الوحدة', 'تاريخ الانتهاء', 'الحد الأدنى', 'الموقع', 'الحالة']];
+  S.items.forEach(function (it) {
+    rows.push([it.barcode || '', it.name, it.category || '', it.qty, it.unit || '',
+      it.expiry || '', it.minQty || '', it.location || '', statusOf(it).text]);
+  });
+  const csv = '\uFEFF' + rows.map(function (r) {
+    return r.map(function (c) { return '"' + String(c).replace(/"/g, '""') + '"'; }).join(',');
+  }).join('\r\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'inventory-' + todayStr() + '.csv';
+  a.click();
+  setTimeout(function () { URL.revokeObjectURL(a.href); }, 2000);
+  toast('تم تصدير الملف', 'ok');
+}
+
+/* ============================================================
+   البدء
+   ============================================================ */
+loadCfg();
+if (S.cfg && S.cfg.token) {
+  if (S.cfg.backendUrl) showApp();
+  else if (S.cfg.token === 'local' && S.cfg.phone) showApp();
+  else { $('loginPhone').value = S.cfg.phone || ''; }
+} else {
+  const params = new URLSearchParams(location.search);
+  const u = params.get('server');
+  if (u) {
+    S.cfg = { backendUrl: u, name: '', phone: '', token: '' };
+    saveCfg();
+  }
+}
+
+document.addEventListener('keydown', function (e) {
+  if (e.key === 'Escape') { closeScanner(); $('srvModal').classList.add('hidden'); }
+});
+$('scanModal').addEventListener('click', function (e) { if (e.target.id === 'scanModal') closeScanner(); });
+$('srvModal').addEventListener('click', function (e) { if (e.target.id === 'srvModal') e.currentTarget.classList.add('hidden'); });
+</script>
 </body>
 </html>
